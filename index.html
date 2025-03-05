@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Heating Demand Prediction</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        form {
+            margin-bottom: 20px;
+        }
+        input[type="number"] {
+            margin: 5px 0;
+            padding: 8px;
+            width: 200px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        .occupancy-images {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .occupancy-images img {
+            width: 50px;
+            height: 50px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            border-radius: 5px;
+        }
+        .occupancy-images img.selected {
+            border-color: #007BFF;
+        }
+        canvas {
+            margin-top: 20px;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <h1>Heating Demand Prediction</h1>
+    <form id="inputForm">
+        <input type="number" id="temperature" placeholder="Temperature">
+        <input type="number" id="humidity" placeholder="Humidity">
+        <div class="occupancy-images">
+            <img src="static/people/1.png" alt="Occupancy 1" data-value="1" onclick="selectOccupancy(1)">
+            <img src="static/people/2.png" alt="Occupancy 2" data-value="2" onclick="selectOccupancy(2)">
+            <img src="static/people/3.png" alt="Occupancy 3" data-value="3" onclick="selectOccupancy(3)">
+			<img src="static/people/4.png" alt="Occupancy 4" data-value="4" onclick="selectOccupancy(4)">
+			<img src="static/people/5.png" alt="Occupancy 5" data-value="5" onclick="selectOccupancy(5)">
+            <!-- Add more images as needed -->
+        </div>
+        <input type="hidden" id="occupancy" value="1">
+        <button type="button" onclick="predict()">Predict</button>
+    </form>
+    <canvas id="heatingDemandChart"></canvas>
+
+    <script>
+        function selectOccupancy(value) {
+            document.getElementById('occupancy').value = value;
+            document.querySelectorAll('.occupancy-images img').forEach(img => {
+                img.classList.remove('selected');
+            });
+            document.querySelector(`.occupancy-images img[data-value="${value}"]`).classList.add('selected');
+        }
+
+        async function predict() {
+            try {
+                const response = await fetch('http://127.0.0.1:5000/predict', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        variables: {
+                            temperature: document.getElementById('temperature').value,
+                            humidity: document.getElementById('humidity').value,
+                            occupancy: document.getElementById('occupancy').value
+                        }
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+                console.log(result); // Log the response for debugging
+                plotChart(result.heating_demand);
+            } catch (error) {
+                console.error("Error:", error);
+            }
+        }
+
+        function plotChart(data) {
+            if (!data) {
+                console.error("No data received for chart plotting.");
+                return;
+            }
+
+            const ctx = document.getElementById('heatingDemandChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: Array.from({ length: data.length }, (_, i) => `Time ${i + 1}`), // Example time labels
+                    datasets: [{
+                        label: 'Heating Demand',
+                        data: data,
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Time'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Heating Demand'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>
